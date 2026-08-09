@@ -1,0 +1,68 @@
+# Frontend CI
+#
+# Runs on every change under frontend/. Four checks:
+#   1. dependencies install from the committed lockfile (npm ci, not npm install)
+#   2. ESLint passes
+#   3. TypeScript compiles with no errors
+#   4. the production Next.js build succeeds
+#
+# `npm run build` does its own type checking, but we run tsc separately first so
+# a type error reports as a type error rather than as a failed build.
+#
+# Note on PR triggers: Azure Repos does NOT support the `pr:` trigger in YAML.
+# To make this run on pull requests you add it as a Build Validation policy on
+# main (Repos > Branches > main > Branch policies > Build Validation).
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - frontend/*
+      - azure-pipelines/frontend-ci.yml
+
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  nodeVersion: "20.x"
+  workingDir: frontend
+
+steps:
+  - task: NodeTool@0
+    displayName: Use Node $(nodeVersion)
+    inputs:
+      versionSpec: $(nodeVersion)
+
+  # npm ci installs exactly what package-lock.json says and fails if the lockfile
+  # is out of sync with package.json. That is what we want in CI - npm install
+  # would quietly "fix" the mismatch and hide the problem.
+  - script: npm ci
+    displayName: Install dependencies
+    workingDirectory: $(workingDir)
+
+  - script: npm run lint
+    displayName: Lint (ESLint)
+    workingDirectory: $(workingDir)
+
+  - script: npx tsc --noEmit
+    displayName: Type check
+    workingDirectory: $(workingDir)
+
+  - script: npm run build
+    displayName: Build
+    workingDirectory: $(workingDir)
+
+  # Informational only. Next.js 14.2.35 is the last 14.x release and carries
+  # advisories that will never be patched (see ADR-11) - we accepted that when we
+  # chose to stay on 14 for this project. Failing the build on it would just teach
+  # everyone to ignore a permanently red pipeline. Revisit at the Next 15 upgrade.
+  # `|| true` rather than continueOnError: a failing-but-tolerated step marks the
+  # whole build partiallySucceeded (orange), which is the same "learn to ignore CI"
+  # trap. This keeps the build honestly green and leaves the findings in the log.
+  - script: npm audit --audit-level=high || true
+    displayName: Dependency audit (informational)
+    workingDirectory: $(workingDir)

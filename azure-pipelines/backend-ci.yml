@@ -1,0 +1,59 @@
+# Backend CI
+#
+# Runs on every change under backend/. Four checks, all fast, no database needed:
+#   1. dependencies install cleanly from the pinned requirements files
+#   2. ruff finds no lint errors
+#   3. the app actually imports
+#   4. every model renders as valid PostgreSQL DDL
+#
+# Note on PR triggers: Azure Repos does NOT support the `pr:` trigger in YAML.
+# To make this run on pull requests you add it as a Build Validation policy on
+# main (Repos > Branches > main > Branch policies > Build Validation).
+# `pr: none` below is just to make that explicit rather than looking forgotten.
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - backend/*
+      - azure-pipelines/backend-ci.yml
+
+pr: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  pythonVersion: "3.12"
+  workingDir: backend
+
+steps:
+  - task: UsePythonVersion@0
+    displayName: Use Python $(pythonVersion)
+    inputs:
+      versionSpec: $(pythonVersion)
+
+  - script: |
+      set -e
+      python -m pip install --upgrade pip
+      pip install -r requirements.txt -r requirements-dev.txt
+    displayName: Install dependencies
+    workingDirectory: $(workingDir)
+
+  - script: ruff check .
+    displayName: Lint (ruff)
+    workingDirectory: $(workingDir)
+
+  # Deliberately does NOT set DATABASE_URL. We want this to use the default that
+  # is committed in config.py, so CI fails if a fresh clone would not start.
+  # SQLAlchemy resolves the database driver at import time, so a mismatch between
+  # the connection URL and the installed driver is caught here without a database.
+  - script: python -c "from app.main import app; print(f'app imports OK, {len(app.routes)} routes')"
+    displayName: App imports
+    workingDirectory: $(workingDir)
+
+  - script: python scripts/check_schema.py
+    displayName: Models render as PostgreSQL DDL
+    workingDirectory: $(workingDir)

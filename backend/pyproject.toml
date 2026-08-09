@@ -1,0 +1,30 @@
+[tool.ruff]
+# Longest existing line is 117. Picking 120 rather than the default 88 means we
+# adopt linting without reformatting every model file first.
+line-length = 120
+target-version = "py312"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+# E/F = pycodestyle + pyflakes, I = import sorting, B = common bug patterns.
+# Deliberately not the whole ruleset. This should catch real mistakes, not start
+# style arguments. We can turn more on later once everyone is used to it.
+select = ["E", "F", "I", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# These imports exist purely to register the models with SQLAlchemy's metadata so
+# Alembic can see them. They are meant to look unused.
+"app/models/__init__.py" = ["F401"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's entire dependency-injection style is Depends() in a default argument.
+# Without this, B008 flags every route we will ever write.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "fastapi.Header",
+    "fastapi.File",
+    "fastapi.Form",
+]
