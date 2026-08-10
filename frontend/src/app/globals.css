@@ -3,25 +3,56 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+  color-scheme: light;
+  --background: 240 33% 97%;
+  --foreground: 231 45% 18%;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --card: 0 0% 100%;
+  --card-foreground: 231 45% 18%;
+
+  --primary: 224 76% 48%;
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 240 20% 96%;
+  --secondary-foreground: 231 30% 30%;
+
+  --muted: 240 20% 96%;
+  --muted-foreground: 231 12% 50%;
+
+  --accent: 224 76% 95%;
+  --accent-foreground: 224 60% 42%;
+
+  --brand: 231 48% 30%;
+  --brand-foreground: 0 0% 100%;
+
+  --success: 152 55% 42%;
+  --warning: 32 90% 52%;
+  --destructive: 0 72% 51%;
+
+  --border: 240 18% 90%;
+  --input: 240 18% 90%;
+  --ring: 224 76% 48%;
+
+  --radius: 0.75rem;
+
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 231 45% 18%;
+  --sidebar-border: 240 18% 92%;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  color: hsl(var(--foreground));
+  background:
+    radial-gradient(circle at 80% 0%, hsla(var(--primary), 0.10), transparent 22%),
+    radial-gradient(circle at 25% 8%, hsla(var(--accent-foreground), 0.15), transparent 26%),
+    hsl(var(--background));
 }
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+  .text-pretty {
+    text-wrap: pretty;
   }
 }
