@@ -2,11 +2,12 @@
 Seed script creates a demo organization, one Editor, and one Approver.
 
 Usage:
-    python scripts/seed.py
+python scripts/seed.py
 
-Safe to run multiple times: it checks for the demo organization by name
-before inserting, so it won't create duplicates on repeat runs.
+Safe to run multiple times: it checks for the fixed development organization
+ID and existing user emails before inserting duplicate records.
 """
+
 import sys
 from pathlib import Path
 
@@ -14,6 +15,7 @@ sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import engine
 from app.models.app_user import AppUser
 from app.models.enums import UserRole
@@ -24,15 +26,32 @@ DEMO_ORG_NAME = "Demo Organization"
 
 def seed() -> None:
     with Session(engine) as session:
-        org = (
-            session.query(Organization)
-            .filter(Organization.name == DEMO_ORG_NAME)
-            .first()
+        org = session.get(
+            Organization,
+            settings.DEVELOPMENT_ORGANIZATION_ID,
         )
+
         if org is None:
-            org = Organization(name=DEMO_ORG_NAME)
+            old_org = (
+                session.query(Organization)
+                .filter(Organization.name == DEMO_ORG_NAME)
+                .first()
+            )
+
+            if old_org is not None:
+                raise SystemExit(
+                    f"Found an older demo organization ({old_org.id}). "
+                    "Please reset the development database:\n"
+                    "  docker compose down -v && docker compose up -d\n"
+                    "  alembic upgrade head && python scripts/seed.py"
+                )
+
+            org = Organization(
+                id=settings.DEVELOPMENT_ORGANIZATION_ID,
+                name=DEMO_ORG_NAME,
+            )
             session.add(org)
-            session.flush()  # get org.id before creating users
+            session.flush()
             print(f"Created organization: {org.name} ({org.id})")
         else:
             print(f"Organization already exists: {org.name} ({org.id})")

@@ -1,4 +1,6 @@
-﻿from pydantic_settings import BaseSettings, SettingsConfigDict
+﻿from uuid import UUID
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -6,6 +8,9 @@ class Settings(BaseSettings):
 
     PROJECT_NAME: str = "Contract Intelligence Platform"
     ENV: str = "development"
+    DEVELOPMENT_ORGANIZATION_ID: UUID = UUID(
+        "00000000-0000-0000-0000-000000000001"
+    )
     DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5433/contract_platform"
     UPLOAD_DIR: str = "./uploads"
     ALLOWED_ORIGINS: str = "http://localhost:3000"

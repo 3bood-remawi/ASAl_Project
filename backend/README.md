@@ -83,3 +83,38 @@ Keys are `{organization_id}/{contract_id}/{version_id}/{filename}`. The filename
 `LocalFileStorage` runs this sprint, under `UPLOAD_DIR`. `AzureBlobStorage` implements the same interface and is selected with `STORAGE_BACKEND=azure_blob` - it raises "not configured" until the subscription exists and `azure-storage-blob` is in requirements.
 
 No delete and no overwrite anywhere in the interface, per NFR-1. `url_for()` returns `/api/files/{key}` on local.
+
+## Shared database access
+
+Every endpoint receives its database session through `get_db`. Do not create
+database sessions manually inside routes.
+
+The current organization is provided by `current_organization_id`. Read queries
+must use helpers from `app/data_access`, where the organization filter is always
+applied.
+
+Example:
+
+```python
+from uuid import UUID
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session
+
+from app.core.database import get_db
+from app.core.dependencies import current_organization_id
+from app.data_access.contracts import get_contracts
+
+router = APIRouter()
+
+
+@router.get("/")
+def list_contracts(
+    db: Session = Depends(get_db),
+    organization_id: UUID = Depends(current_organization_id),
+):
+    return get_contracts(db, organization_id)
+```
+
+Do not write `Contract.organization_id` filters directly inside routes. Keep
+tenant-scoped query logic inside the shared read helpers.

@@ -28,3 +28,8 @@ extend-immutable-calls = [
     "fastapi.File",
     "fastapi.Form",
 ]
+[tool.pytest.ini_options]
+# tests/ has no __init__.py (matches app/core, app/api/routes), so pytest
+# wouldn't otherwise put backend/ on sys.path and "import app..." would fail.
+pythonpath = ["."]
+testpaths = ["tests"]
