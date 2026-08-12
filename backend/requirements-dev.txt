@@ -1,3 +1,5 @@
+httpcore2==2.9.1
+httpx2==2.9.1
 iniconfig==2.3.0
 packaging==26.3
 pluggy==1.6.0

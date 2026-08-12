@@ -11,7 +11,12 @@ class Settings(BaseSettings):
     DEVELOPMENT_ORGANIZATION_ID: UUID = UUID(
         "00000000-0000-0000-0000-000000000001"
     )
-    DATABASE_URL: str = "postgresql+psycopg://postgres:postgres@localhost:5433/contract_platform"
+    # the emulator key is public, it is the same on every machine
+    COSMOS_ENDPOINT: str = "https://localhost:8081"
+    COSMOS_KEY: str = (
+        "C2y6yDjf5/R+ob0N8A7Cgv30VRDJIWEHLM+4QDU5DE2nQ9nDuVTqobD4b8mGGyPMbIZnqyMsEcaGQy67XIw/Jw=="
+    )
+    COSMOS_DATABASE: str = "contract_platform"
     UPLOAD_DIR: str = "./uploads"
     ALLOWED_ORIGINS: str = "http://localhost:3000"
 

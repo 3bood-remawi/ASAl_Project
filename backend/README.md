@@ -1,30 +1,31 @@
-﻿# Backend - Contract Intelligence Platform
+# Backend - Contract Intelligence Platform
 FastAPI backend for the contract platform.
 
 ## Stack
 - FastAPI
-- SQLAlchemy + PostgreSQL (via Docker, pgvector-enabled)
-- pgvector for embedding storage
+- Azure Cosmos DB (documents, not tables) via the local emulator
+- Vector search in Cosmos for retrieval
 
 ## Local setup
 Requires Docker Desktop.
 
 1. Clone the repo and enter the `backend` folder.
 2. Copy `.env.example` to `.env`.
-3. Start the database:
+3. Start Cosmos:
    ```
    docker compose up -d
    ```
-   This starts PostgreSQL 16 with pgvector already enabled (via the mounted init script) and a health check, so it's ready as soon as the container reports healthy. Data persists across restarts in a named volume.
+   This runs the Cosmos emulator. It takes a couple of minutes on a cold start, so
+   wait for the container to report healthy before starting the API.
 4. Install dependencies:
    ```
    python -m venv venv
    venv\Scripts\Activate
    pip install -r requirements.txt
    ```
-5. Run migrations:
+5. Create the demo organization and users:
    ```
-   alembic upgrade head
+   python scripts/seed.py
    ```
 6. Start the API:
    ```
@@ -32,40 +33,35 @@ Requires Docker Desktop.
    ```
 7. Visit http://127.0.0.1:8000/docs
 
-## Database migrations
+The database and both containers are created on startup, so there are no migrations.
+The emulator does not keep data across restarts, so re-run `scripts/seed.py` after
+bringing it up again.
 
-Schema changes go through Alembic — never edit the database by hand and never rely on `create_all()`.
+## Documents
 
-- Apply all migrations:
-  ```
-  alembic upgrade head
-  ```
-- Create a new migration after changing a model:
-  ```
-  alembic revision --autogenerate -m "Describe the change"
-  ```
-  Review the generated file before committing — autogenerate doesn't reliably detect extension requirements (e.g. `CREATE EXTENSION IF NOT EXISTS vector`) or some index types, so check those by hand.
-- Roll back the last migration:
-  ```
-  alembic downgrade -1
-  ```
+There are two containers, both partitioned by `organizationId`:
 
-## Seed data
+- `contracts` - organization, user, contract, version and job documents, told apart by `type`
+- `chunks` - chunk documents, with the vector index used for retrieval
 
-To populate a fresh database with a demo organization, one Editor, and one Approver:
+Every shape lives in `app/documents/shapes.py`. Build a document there and write
+`document.to_item()` rather than assembling a dict by hand, so field names stay the
+same everywhere. Fields are camelCase in Cosmos and snake_case in Python.
+
+```python
+from app.documents.shapes import ContractDocument
+
+contract = ContractDocument(
+    id=contract_id, organization_id=org_id, name="Nexa Services", created_by=user_id
+)
+container.upsert_item(contract.to_item())
 ```
-python scripts/seed.py
-```
-Safe to run more than once — it checks for existing records first and won't create duplicates.
 
-## Data model (Task 833/851 - Sprint 2/3 schema)
-Six tables built per mentor spec, tested and confirmed working against Postgres + pgvector:
-- organization - tenant record
-- app_user - id, organization_id, external_id, email, full_name, role, is_active
-- contract - id, organization_id, name, status, created_by, created_at
-- contract_version - file metadata, processing_status, no circular FK (current version derived via MAX(version_number))
-- processing_job - tracks async pipeline stage/status/retries
-- document_chunk - id, organization_id, version_id, page_number, chunk_order, bounding_boxes (JSONB), char_start, char_end, text, language, heading_path, token_count, embedding
+`python scripts/check_documents.py` builds one of every shape and checks the field
+names. It needs no database and runs in CI.
+
+Writing several documents that belong together goes in one `execute_item_batch` on
+the same partition key, so they cannot half save.
 
 ## File storage (Task 839)
 Contract files go through `app/storage`. Callers work in keys, so nothing outside that package knows whether the file is on disk or in Azure.
@@ -86,22 +82,14 @@ No delete and no overwrite anywhere in the interface, per NFR-1. `url_for()` ret
 
 ## Shared database access
 
-Every endpoint receives its database session through `get_db`. Do not create
-database sessions manually inside routes.
-
-The current organization is provided by `current_organization_id`. Read queries
-must use helpers from `app/data_access`, where the organization filter is always
-applied.
-
-Example:
+The current organization comes from `current_organization_id`. Read queries must use
+helpers from `app/data_access`, where the organization filter is always applied.
 
 ```python
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 
-from app.core.database import get_db
 from app.core.dependencies import current_organization_id
 from app.data_access.contracts import get_contracts
 
@@ -109,12 +97,9 @@ router = APIRouter()
 
 
 @router.get("/")
-def list_contracts(
-    db: Session = Depends(get_db),
-    organization_id: UUID = Depends(current_organization_id),
-):
-    return get_contracts(db, organization_id)
+def list_contracts(organization_id: UUID = Depends(current_organization_id)):
+    return get_contracts(str(organization_id))
 ```
 
-Do not write `Contract.organization_id` filters directly inside routes. Keep
-tenant-scoped query logic inside the shared read helpers.
+Do not query the container directly inside a route. Keep tenant-scoped query logic in
+the shared read helpers, and always pass the partition key.

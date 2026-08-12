@@ -4,7 +4,7 @@ Two pipelines, split so a frontend change does not run backend checks and vice v
 
 | File | Runs when | Checks |
 |---|---|---|
-| `backend-ci.yml` | anything under `backend/` changes | install, ruff lint, app imports, models render as PostgreSQL DDL |
+| `backend-ci.yml` | anything under `backend/` changes | install, ruff lint, app imports, document shapes are valid |
 | `frontend-ci.yml` | anything under `frontend/` changes | `npm ci`, ESLint, `tsc --noEmit`, `next build` |
 
 Both run in about a minute and neither needs a database.
@@ -41,23 +41,20 @@ every frontend PR waits on the backend build and vice versa.
 
 The two custom checks are not busywork, they are both bugs we have already hit:
 
-- **App imports** deliberately does *not* set `DATABASE_URL`, so it uses the default
-  committed in `config.py`. This catches "a fresh clone does not start", which has
-  broken `main` twice now - once with a SQLite default that could not render `JSONB`,
-  and once with a connection URL asking for `psycopg2` while `requirements.txt`
-  shipped `psycopg` 3.
-- **`scripts/check_schema.py`** compiles every model against the PostgreSQL dialect.
-  A model can import perfectly and still be impossible to create as a table. Without
-  this you find out at migration time instead.
+- **App imports** runs with no Cosmos reachable. The client is built on first use
+  rather than at import, so this catches "a fresh clone does not start" without
+  needing a database. That has broken `main` twice before.
+- **`scripts/check_documents.py`** builds one of every document shape and checks the
+  field names. A shape can import perfectly and still write the wrong keys, and every
+  part of the app has to agree on them.
 
 ## Things deliberately left out
 
-- **Tests.** There are none yet. When they arrive, add a `pytest` step to `backend-ci.yml`.
+- **Tests.** `tests/` runs locally with `pytest` and needs no database. Worth adding as a step.
 - **`ruff format --check`.** Enabling it today would reformat 11 files in one go.
   Worth doing as its own PR so the diff is reviewable, rather than hiding it in here.
-- **Migrations against a real database.** Once Alembic lands (task 834), the strongest
-  check available is running `alembic upgrade head` against a real Postgres service
-  container with pgvector. Worth adding then.
+- **Anything against a real Cosmos.** The emulator takes minutes to start and is not
+  worth it per build. The shape check covers what would otherwise be caught late.
 - **Caching.** Both jobs are fast enough that pip/npm caching is not worth the extra
   moving parts yet.
 - **Deployment.** These only build and validate. Nothing deploys anywhere.
@@ -72,7 +69,7 @@ cd backend
 pip install -r requirements.txt -r requirements-dev.txt
 ruff check .
 python -c "from app.main import app"
-python scripts/check_schema.py
+python scripts/check_documents.py
 
 # frontend
 cd frontend

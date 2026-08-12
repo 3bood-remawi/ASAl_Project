@@ -1,6 +1,15 @@
 import enum
 
 
+class DocumentType(str, enum.Enum):
+    ORGANIZATION = "organization"
+    USER = "user"
+    CONTRACT = "contract"
+    VERSION = "version"
+    JOB = "job"
+    CHUNK = "chunk"
+
+
 class UserRole(str, enum.Enum):
     EDITOR = "editor"
     APPROVER = "approver"
