@@ -127,10 +127,22 @@ def chunk_text(extraction: ExtractionResult, version_id: str) -> list[Chunk]:
         )
     return chunks
 
-"""Saves each chunk as a ChunkDocument using upsert to avoid duplicates on reruns."""
-def save_chunks(chunks: list[Chunk], organization_id: str) -> None:
+"""Saves each chunk as a ChunkDocument using upsert to avoid duplicates on reruns.
+
+embeddings, when given, must be the same length as chunks and line up by
+position (embeddings[i] is chunk[i]'s vector). Left as None for callers that
+haven't computed embeddings yet, e.g. existing tests.
+"""
+def save_chunks(
+    chunks: list[Chunk],
+    organization_id: str,
+    embeddings: list[list[float]] | None = None,
+) -> None:
+    if embeddings is not None and len(embeddings) != len(chunks):
+        raise ValueError("embeddings must have exactly one vector per chunk")
+
     container = get_chunks_container()
-    for chunk in chunks:
+    for index, chunk in enumerate(chunks):
         document = ChunkDocument(
             id=chunk.id,
             organization_id=organization_id,
@@ -138,5 +150,6 @@ def save_chunks(chunks: list[Chunk], organization_id: str) -> None:
             chunk_order=chunk.chunk_order,
             text=chunk.text,
             page_number=chunk.page_number,
+            embedding=embeddings[index] if embeddings is not None else None,
         )
         container.upsert_item(document.to_item())

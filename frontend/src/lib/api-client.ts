@@ -56,3 +56,49 @@ export function postFile<T>(
     body: formData,
   });
 }
+
+export function uploadFile<T>(
+  path: string,
+  file: File,
+  onProgress: (percent: number) => void,
+  fieldName = "file"
+): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const formData = new FormData();
+    formData.append(fieldName, file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${config.apiBaseUrl}${path}`);
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      const body = JSON.parse(xhr.responseText || "null");
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(body as T);
+        return;
+      }
+
+      const detail = body?.detail;
+      const message =
+        typeof detail === "string"
+          ? detail
+          : typeof detail?.message === "string"
+            ? detail.message
+            : xhr.statusText || "Upload failed";
+
+      reject(new ApiError(message, xhr.status));
+    };
+
+    xhr.onerror = () => {
+      reject(new ApiError("Network error — check your connection", 0));
+    };
+
+    xhr.send(formData);
+  });
+}

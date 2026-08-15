@@ -10,12 +10,14 @@ import {
   Plus,
   LifeBuoy,
   LogOut,
+  FileText,
 } from "lucide-react";
 import { APP_NAME, APP_TAGLINE } from "@/lib/site-config";
 
 const navItems = [
   { label: "Dashboard", href: "#", icon: LayoutGrid },
   { label: "Upload", href: "/upload", icon: UploadCloud },
+  { label: "Contracts", href: "/contracts", icon: FileText },
   { label: "Risk", href: "#", icon: ShieldAlert },
   { label: "Settings", href: "#", icon: Settings },
 ];

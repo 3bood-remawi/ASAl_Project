@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any
 from uuid import UUID
 
@@ -7,13 +8,18 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, HTTPException, Qu
 from app.api.deps import get_current_user
 from app.core.dependencies import current_organization_id
 from app.data_access.contracts import (
+    get_contract_by_id,
     get_contracts_page_with_versions,
+    get_current_version_job,
     get_distinct_contract_types,
     get_distinct_statuses,
     get_version_by_hash,
 )
+from app.schemas.ask import AskRequest, AskResponse
 from app.schemas.contracts import AppliedFilters, ContractListItem, ContractListResponse, FilterValuesResponse
+from app.schemas.jobs import UploadStatus
 from app.schemas.upload import DuplicateContract, UploadAccepted
+from app.services.ask import ContractNotReadyError, ask_contract
 from app.services.processing import process_version
 from app.services.upload import UploadRejected, inspect_upload, store_upload
 
@@ -110,12 +116,58 @@ def upload_contract(
     )
 
 
+@router.get("/{contract_id}/status", response_model=UploadStatus)
+def contract_status(
+    contract_id: UUID,
+    organization_id: UUID = Depends(current_organization_id),
+):
+    organization = str(organization_id)
+    if get_contract_by_id(organization, str(contract_id)) is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contract not found")
+
+    job = get_current_version_job(organization, str(contract_id))
+    if job is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This contract has no processing job yet",
+        )
+
+    return UploadStatus(
+        job_id=job["id"],
+        version_id=job["versionId"],
+        stage=job["stage"],
+        status=job["status"],
+        error_message=job.get("errorMessage"),
+        # Cosmos stamps _ts on every write, so it is true even for a job that never started
+        last_changed_at=datetime.fromtimestamp(job["_ts"], tz=timezone.utc),
+    )
+
+
 def _duplicate_of(version: dict[str, Any]) -> dict[str, Any]:
     return DuplicateContract(
         message="This file has already been uploaded",
         contract_id=version["contractId"],
         version_id=version["id"],
     ).model_dump(mode="json")
+
+
+@router.post("/{contract_id}/ask", response_model=AskResponse)
+def ask(
+    contract_id: str,
+    payload: AskRequest,
+    organization_id: UUID = Depends(current_organization_id),
+):
+    contract = get_contract_by_id(str(organization_id), contract_id)
+    if contract is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contract not found")
+
+    try:
+        return ask_contract(str(organization_id), contract_id, payload.question)
+    except ContractNotReadyError:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This contract has not finished processing yet.",
+        ) from None
 
 
 @router.get("/filter-values", response_model=FilterValuesResponse)

@@ -5,6 +5,8 @@ from app.data_access.contracts import get_job_for_version, get_version
 from app.documents.enums import JobStage, ProcessingStatus
 from app.documents.shapes import JobDocument, VersionDocument
 from app.services import job_tracking
+from app.services.chunking import chunk_text, save_chunks
+from app.services.embedding import embed_texts
 from app.services.text_extraction import (
     CorruptPdfError,
     EncryptedPdfError,
@@ -55,9 +57,20 @@ def _run(version: VersionDocument, job: JobDocument) -> None:
     version.full_text = result.text
     version.page_count = result.page_count
     version.language = result.language
-    _save_version(version, ProcessingStatus.DONE)
 
+    job_tracking.start(job, JobStage.EMBEDDING)
+    _chunk_and_embed(version, result)
+
+    _save_version(version, ProcessingStatus.DONE)
     job_tracking.succeed(job)
+
+
+def _chunk_and_embed(version: VersionDocument, result: ExtractionResult) -> None:
+    """Splits the extracted text into chunks and saves each with its embedding,
+    so the ask endpoint has something to search once processing finishes."""
+    chunks = chunk_text(result, version.id)
+    embeddings = embed_texts([chunk.text for chunk in chunks])
+    save_chunks(chunks, version.organization_id, embeddings=embeddings)
 
 
 def _extract(version: VersionDocument) -> ExtractionResult:

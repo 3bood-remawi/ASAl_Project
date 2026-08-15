@@ -64,6 +64,24 @@ def get_version(organization_id: str, version_id: str) -> VersionDocument | None
     return VersionDocument.model_validate(rows[0]) if rows else None
 
 
+def get_current_version_for_contract(organization_id: str, contract_id: str) -> dict[str, Any] | None:
+    """The highest versionNumber row for this contract, or None if it has none yet."""
+    rows = list(
+        get_contracts_container().query_items(
+            query=(
+                "SELECT * FROM c WHERE c.type = @type AND c.contractId = @contract_id "
+                "ORDER BY c.versionNumber DESC"
+            ),
+            parameters=[
+                {"name": "@type", "value": DocumentType.VERSION.value},
+                {"name": "@contract_id", "value": contract_id},
+            ],
+            partition_key=organization_id,
+        )
+    )
+    return rows[0] if rows else None
+
+
 def get_job_for_version(organization_id: str, version_id: str) -> JobDocument | None:
     rows = list(
         get_contracts_container().query_items(
@@ -76,6 +94,37 @@ def get_job_for_version(organization_id: str, version_id: str) -> JobDocument | 
         )
     )
     return JobDocument.model_validate(rows[0]) if rows else None
+
+
+def get_current_version_job(organization_id: str, contract_id: str) -> dict[str, Any] | None:
+    """The job for the contract's newest version, as stored, so _ts comes with it."""
+    versions = list(
+        get_contracts_container().query_items(
+            query=(
+                "SELECT * FROM c WHERE c.type = @type AND c.contractId = @contract "
+                "ORDER BY c.versionNumber DESC"
+            ),
+            parameters=[
+                {"name": "@type", "value": DocumentType.VERSION.value},
+                {"name": "@contract", "value": contract_id},
+            ],
+            partition_key=organization_id,
+        )
+    )
+    if not versions:
+        return None
+
+    jobs = list(
+        get_contracts_container().query_items(
+            query="SELECT * FROM c WHERE c.type = @type AND c.versionId = @version",
+            parameters=[
+                {"name": "@type", "value": DocumentType.JOB.value},
+                {"name": "@version", "value": versions[0]["id"]},
+            ],
+            partition_key=organization_id,
+        )
+    )
+    return jobs[0] if jobs else None
 
 
 def get_editor(organization_id: str) -> dict[str, Any] | None:

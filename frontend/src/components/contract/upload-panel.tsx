@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { UploadDropzone } from "./upload-dropzone";
 import { UploadQueue } from "./upload-queue";
+import { uploadFile, ApiError } from "@/lib/api-client";
+import { useToast } from "@/components/ToastProvider";
 import type { QueueItem } from "@/types/upload";
 
 const initialQueue: QueueItem[] = [];
@@ -14,44 +16,11 @@ function formatSize(bytes: number) {
 
 export function UploadPanel() {
   const [items, setItems] = useState<QueueItem[]>(initialQueue);
-  const timers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
-
-  // Drive the progress bar for anything that is uploading.
-  useEffect(() => {
-    const active = items.filter((i) => i.status === "uploading");
-    active.forEach((item) => {
-      if (timers.current[item.id]) return;
-      timers.current[item.id] = setInterval(() => {
-        setItems((prev) =>
-          prev.map((it) => {
-            if (it.id !== item.id || it.status !== "uploading") return it;
-            const next = Math.min(it.progress + 5, 100);
-            if (next === 100) {
-              clearInterval(timers.current[item.id]);
-              delete timers.current[item.id];
-              return {
-                ...it,
-                progress: 100,
-                status: "processing",
-                detail: "AI Extraction in progress...",
-              };
-            }
-            return { ...it, progress: next };
-          })
-        );
-      }, 400);
-    });
-  }, [items]);
-
-  useEffect(() => {
-    const snapshot = timers.current;
-    return () => {
-      Object.values(snapshot).forEach(clearInterval);
-    };
-  }, []);
+  const toast = useToast();
 
   function addFiles(files: FileList | File[]) {
-    const incoming = Array.from(files).map<QueueItem>((file, idx) => ({
+    const fileArray = Array.from(files);
+    const incoming = fileArray.map<QueueItem>((file, idx) => ({
       id: `${Date.now()}-${idx}-${file.name}`,
       fileName: file.name,
       sizeLabel: formatSize(file.size),
@@ -59,19 +28,41 @@ export function UploadPanel() {
       progress: 0,
     }));
     setItems((prev) => [...incoming, ...prev]);
+
+    incoming.forEach((item, idx) => {
+      const file = fileArray[idx];
+      uploadFile("/api/contracts/", file, (percent) => {
+        setItems((prev) =>
+          prev.map((it) => (it.id === item.id ? { ...it, progress: percent } : it))
+        );
+      })
+        .then(() => {
+          setItems((prev) =>
+            prev.map((it) =>
+              it.id === item.id
+                ? {
+                    ...it,
+                    progress: 100,
+                    status: "processing",
+                    detail: "AI Extraction in progress...",
+                  }
+                : it
+            )
+          );
+        })
+        .catch((err) => {
+          const message = err instanceof ApiError ? err.message : "Upload failed";
+          toast.error(message);
+          setItems((prev) => prev.filter((it) => it.id !== item.id));
+        });
+    });
   }
 
   function removeItem(id: string) {
-    if (timers.current[id]) {
-      clearInterval(timers.current[id]);
-      delete timers.current[id];
-    }
     setItems((prev) => prev.filter((i) => i.id !== id));
   }
 
   function clearAll() {
-    Object.values(timers.current).forEach(clearInterval);
-    timers.current = {};
     setItems([]);
   }
 
