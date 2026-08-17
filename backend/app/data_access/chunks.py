@@ -4,6 +4,24 @@ from app.core.cosmos import get_chunks_container
 from app.documents.enums import DocumentType
 
 
+def delete_chunks_for_version(organization_id: str, version_id: str) -> int:
+    """Removes every chunk of one version. Returns how many were deleted."""
+    container = get_chunks_container()
+    rows = list(
+        container.query_items(
+            query="SELECT c.id FROM c WHERE c.type = @type AND c.versionId = @versionId",
+            parameters=[
+                {"name": "@type", "value": DocumentType.CHUNK.value},
+                {"name": "@versionId", "value": version_id},
+            ],
+            partition_key=organization_id,
+        )
+    )
+    for row in rows:
+        container.delete_item(item=row["id"], partition_key=organization_id)
+    return len(rows)
+
+
 def search_chunks_by_vector(
     organization_id: str,
     version_id: str,

@@ -11,13 +11,15 @@ import {
   LifeBuoy,
   LogOut,
   FileText,
+  MessageCircleQuestion,
 } from "lucide-react";
 import { APP_NAME, APP_TAGLINE } from "@/lib/site-config";
 
 const navItems = [
-  { label: "Dashboard", href: "#", icon: LayoutGrid },
+  { label: "Dashboard", href: "/", icon: LayoutGrid },
   { label: "Upload", href: "/upload", icon: UploadCloud },
   { label: "Contracts", href: "/contracts", icon: FileText },
+  { label: "Ask", href: "/ask", icon: MessageCircleQuestion },
   { label: "Risk", href: "#", icon: ShieldAlert },
   { label: "Settings", href: "#", icon: Settings },
 ];
@@ -34,7 +36,9 @@ export function AppSidebar() {
 
       <nav className="flex flex-col gap-1 px-3" aria-label="Primary">
         {navItems.map(({ label, href, icon: Icon }) => {
-          const isActive = href !== "#" && pathname.startsWith(href);
+          const isActive =
+            href !== "#" &&
+            (href === "/" ? pathname === "/" : pathname.startsWith(href));
           return (
             <Link
               key={label}

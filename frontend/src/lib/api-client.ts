@@ -29,9 +29,10 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
   return res.json();
 }
 
-export function get<T>(path: string): Promise<T> {
+export function get<T>(path: string, init: RequestInit = {}): Promise<T> {
   return request<T>(path, {
     method: "GET",
+    ...init,
   });
 }
 

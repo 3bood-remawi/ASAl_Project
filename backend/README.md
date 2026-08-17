@@ -36,6 +36,22 @@ Requires Docker Desktop.
 The database and both containers are created on startup, so there are no migrations.
 The emulator does not keep data across restarts, so re-run `scripts/seed.py` after
 bringing it up again.
+bringing it up again.
+
+### Load test contracts
+
+After running the seed script, load the seven PDF fixtures into Cosmos:
+
+```bash
+python scripts/load_test_contracts.py
+```
+
+The script uses the existing extraction, chunking, and embedding pipeline. It is
+safe to run more than once because PDFs already stored with the same file hash are
+skipped. The scanned PDF is retained as a failed contract because OCR is not
+supported yet.
+
+## Documents
 
 ## Documents
 
@@ -62,6 +78,18 @@ names. It needs no database and runs in CI.
 
 Writing several documents that belong together goes in one `execute_item_batch` on
 the same partition key, so they cannot half save.
+
+## Reprocessing a contract
+
+Uploading runs extraction, chunking and embedding in the background. To run them
+again after a failed job, or after changing the chunking:
+
+```
+python scripts/reprocess.py <contract_id>
+```
+
+It works on the contract's current version and clears the old chunks first, so a
+run that produces fewer chunks cannot leave the extra ones behind.
 
 ## File storage (Task 839)
 Contract files go through `app/storage`. Callers work in keys, so nothing outside that package knows whether the file is on disk or in Azure.

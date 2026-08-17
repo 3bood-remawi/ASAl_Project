@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import localFont from "next/font/local";
 import { ToastProvider } from "@/components/ToastProvider";
 import "./globals.css";
 import { APP_NAME, APP_TAGLINE } from "@/lib/site-config";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
 });
 const geistMono = localFont({
   src: "./fonts/GeistMonoVF.woff",
@@ -27,10 +28,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="bg-background">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased`}
-      >
+    <html lang="en" className={`${inter.variable} ${geistMono.variable} bg-background`}>
+      <body className="font-sans antialiased">
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

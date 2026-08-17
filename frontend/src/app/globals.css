@@ -42,10 +42,29 @@
 
 body {
   color: hsl(var(--foreground));
+  font-family: theme("fontFamily.sans");
+  font-feature-settings: "cv11", "ss01";
+  font-variation-settings: "opsz" 32;
   background:
     radial-gradient(circle at 80% 0%, hsla(var(--primary), 0.10), transparent 22%),
     radial-gradient(circle at 25% 8%, hsla(var(--accent-foreground), 0.15), transparent 26%),
     hsl(var(--background));
+}
+
+/* Form controls use the OS font unless told otherwise. */
+input,
+textarea,
+select,
+button {
+  font-family: inherit;
+  font-feature-settings: inherit;
+}
+
+code,
+kbd,
+pre,
+samp {
+  font-family: theme("fontFamily.mono");
 }
 
 @layer utilities {

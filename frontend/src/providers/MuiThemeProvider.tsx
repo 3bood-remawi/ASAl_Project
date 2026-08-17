@@ -15,7 +15,7 @@ export const muiTheme = createTheme({
         borderRadius: 8,
     },
     typography: {
-        fontFamily: "var(--font-inter),  system.ui, sans-serif",
+        fontFamily: "var(--font-inter), ui-sans-serif, system-ui, sans-serif",
     },
 });
 
