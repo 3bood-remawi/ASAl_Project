@@ -218,7 +218,7 @@ export function AskPanel() {
           </p>
           <ul className="flex flex-col gap-3">
             {askState.passages.map((p, i) => (
-              <PassageResult key={p.chunk_id} passage={p} rank={i + 1} />
+              <PassageResult key={p.chunk_id} passage={p} rank={i + 1} question={askedQuestion} />
             ))}
           </ul>
         </div>

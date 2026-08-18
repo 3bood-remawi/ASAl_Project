@@ -1,23 +1,23 @@
-import { ShieldCheck, Sparkles, Layers } from "lucide-react";
+import { FileText, Sparkles, Layers } from "lucide-react";
 
 const features = [
   {
-    icon: ShieldCheck,
-    title: "Secure Encryption",
+    icon: FileText,
+    title: "Text Extraction",
     description:
-      "All documents are encrypted with AES-256 and never used for public training.",
+      "Every page of your PDF is extracted and processed, so it's ready to search and review.",
   },
   {
     icon: Sparkles,
-    title: "Auto-Classification",
+    title: "Ask About Your Contract",
     description:
-      "Our AI automatically detects contract types and relevant jurisdictional law.",
+      "Ask questions about your contract and get answers pulled directly from its content.",
   },
-  {
+    {
     icon: Layers,
-    title: "Batch Processing",
+    title: "Multiple Documents",
     description:
-      "Upload up to 50 documents at once for large-scale litigation review.",
+      "Drop in several PDF contracts at once — each one is uploaded and processed individually.",
   },
 ];
 

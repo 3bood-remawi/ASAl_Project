@@ -7,6 +7,10 @@ import { uploadFile, ApiError } from "@/lib/api-client";
 import { useToast } from "@/components/ToastProvider";
 import type { QueueItem } from "@/types/upload";
 
+type UploadResponse = {
+  contract_id: string;
+};
+
 const initialQueue: QueueItem[] = [];
 
 function formatSize(bytes: number) {
@@ -31,20 +35,20 @@ export function UploadPanel() {
 
     incoming.forEach((item, idx) => {
       const file = fileArray[idx];
-      uploadFile("/api/contracts/", file, (percent) => {
+        uploadFile<UploadResponse>("/api/contracts/", file, (percent) => {
         setItems((prev) =>
           prev.map((it) => (it.id === item.id ? { ...it, progress: percent } : it))
         );
       })
-        .then(() => {
+        .then((response) => {
           setItems((prev) =>
             prev.map((it) =>
               it.id === item.id
                 ? {
                     ...it,
+                    contractId: response.contract_id,
                     progress: 100,
                     status: "processing",
-                    detail: "AI Extraction in progress...",
                   }
                 : it
             )

@@ -1,4 +1,5 @@
 import { FileText } from "lucide-react";
+import { HighlightedPassageText } from "./highlighted-passage-text";
 
 export interface Passage {
   chunk_id: string;
@@ -15,7 +16,15 @@ function relevancePercent(score: number) {
   return Math.round(Math.min(1, Math.max(0, normalized)) * 100);
 }
 
-export function PassageResult({ passage, rank }: { passage: Passage; rank: number }) {
+export function PassageResult({
+  passage,
+  rank,
+  question,
+}: {
+  passage: Passage;
+  rank: number;
+  question: string;
+}) {
   const relevance = relevancePercent(passage.score);
 
   return (
@@ -42,7 +51,9 @@ export function PassageResult({ passage, rank }: { passage: Passage; rank: numbe
           </div>
         </div>
 
-        <p className="text-sm leading-relaxed text-foreground">{passage.text}</p>
+        <p className="text-sm leading-relaxed text-foreground">
+          <HighlightedPassageText text={passage.text} question={question} />
+        </p>
       </div>
     </li>
   );

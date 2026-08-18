@@ -8,6 +8,7 @@ import {
   X,
 } from "lucide-react";
 import type { QueueItem } from "@/types/upload";
+import { useContractStatus } from "@/hooks/useContractStatus";
 
 interface UploadQueueProps {
   items: QueueItem[];
@@ -60,14 +61,25 @@ function QueueRow({
   item: QueueItem;
   onRemove: () => void;
 }) {
+  const { jobStatus } = useContractStatus(item.contractId ?? null, null);
+
   const isUploading = item.status === "uploading";
-  const isProcessing = item.status === "processing";
-  const isComplete = item.status === "complete";
+  const currentStatus = jobStatus?.status;
+  const isProcessing =
+    item.status === "processing" &&
+    currentStatus !== "succeeded" &&
+    currentStatus !== "failed";
+  const isComplete = currentStatus === "succeeded";
+  const isFailed = currentStatus === "failed";
 
   return (
     <li
       className={`flex items-center gap-4 rounded-xl border bg-gradient-to-r from-white to-blue-50/30 px-4 py-3.5 shadow-sm ${
-        isProcessing ? "border-l-4 border-l-warning border-border" : "border-border"
+        isProcessing
+          ? "border-l-4 border-l-warning border-border"
+          : isFailed
+            ? "border-l-4 border-l-destructive border-border"
+            : "border-border"
       }`}
     >
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-secondary">
@@ -82,6 +94,12 @@ function QueueRow({
         )}
         {isComplete && (
           <CheckCircle2 className="h-5 w-5 text-success" aria-hidden="true" />
+        )}
+        {isFailed && (
+          <X
+            className="h-5 w-5 text-destructive"
+            aria-hidden="true"
+          />
         )}
       </div>
 
@@ -111,7 +129,13 @@ function QueueRow({
         {isProcessing && (
           <p className="mt-0.5 flex items-center gap-1.5 text-xs text-warning">
             <span className="inline-block h-1.5 w-1.5 rounded-full bg-warning" />
-            Processing: {item.detail ?? "AI Extraction in progress..."}
+            Processing: {jobStatus?.stage ?? "Processing"}
+          </p>
+        )}
+
+        {isFailed && (
+          <p className="mt-0.5 text-xs text-destructive">
+            {jobStatus?.errorMessage ?? "Processing failed"}
           </p>
         )}
 
@@ -155,6 +179,17 @@ function QueueRow({
             className="rounded-lg bg-primary px-3.5 py-2 text-xs font-semibold text-primary-foreground transition-colors hover:opacity-90"
           >
             View Analysis
+          </button>
+        )}
+
+        {isFailed && (
+          <button
+            type="button"
+            onClick={onRemove}
+            aria-label={`Remove ${item.fileName} from queue`}
+            className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         )}
       </div>

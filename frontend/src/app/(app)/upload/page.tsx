@@ -1,4 +1,3 @@
-import { Lightbulb } from "lucide-react";
 import { UploadPanel } from "@/components/contract/upload-panel";
 import { FeatureCards } from "@/components/contract/feature-cards";
 import { APP_NAME } from "@/lib/site-config";
@@ -21,14 +20,6 @@ export default function UploadPage() {
           <UploadPanel />
           <FeatureCards />
         </div>
-      </div>
-
-      <div className="mt-4 flex items-center justify-center gap-2 bg-brand px-6 py-3.5 text-center text-xs font-medium text-brand-foreground">
-        <Lightbulb className="h-4 w-4" aria-hidden="true" />
-        <span>
-          Pro Tip: Use the &apos;Legal Folders&apos; integration to sync
-          directly from OneDrive or SharePoint.
-        </span>
       </div>
     </>
   );

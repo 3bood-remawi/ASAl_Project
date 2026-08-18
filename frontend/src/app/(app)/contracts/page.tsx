@@ -6,21 +6,18 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import Card from "@/components/Card";
 import EmptyState from "@/components/EmptyState";
 import Skeleton from "@/components/Skeleton";
-import { config } from "@/lib/config";
+import { get, ApiError } from "@/lib/api-client";
+import type {
+  ContractListItem,
+  ContractListResponse,
+  FilterValuesResponse,
+} from "@/types/contract";
 
 const PAGE_SIZE = 20;
-interface Contract {
-
-    id: string;
-    name: string;
-    status: string;
-    page_count: number | null;
-    uploaded_at: string | null;
-}
 
 function ContractsContent() {
 
-    const [contracts, setContracts] = useState<Contract[]>([]);
+    const [contracts, setContracts] = useState<ContractListItem[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [totalItems, setTotalItems] = useState(0);
@@ -47,9 +44,8 @@ function ContractsContent() {
     }, [searchInput]);
 
     useEffect(() => {
-      fetch(`${config.apiBaseUrl}/api/contracts/filter-values`)
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => data && setFilterValues(data))
+      get<FilterValuesResponse>("/api/contracts/filter-values")
+        .then((data) => setFilterValues(data))
         .catch(() => {});
     }, []);
 
@@ -62,20 +58,14 @@ function ContractsContent() {
         params.set("page", String(page));
         params.set("page_size", String(PAGE_SIZE));
 
-        fetch(`${config.apiBaseUrl}/api/contracts/?${params.toString()}`)
-        .then((res) => {
-            if (!res.ok) {
-              throw new Error(`Request failed: ${res.status}`);
-            }
-            return res.json();
-        })
+        get<ContractListResponse>(`/api/contracts/?${params.toString()}`)
         .then((data) => {
             setContracts(data.items);
             setTotalItems(data.total_items);
             setIsLoading(false);
         })
         .catch((err) => {
-            setError(err.message);
+            setError(err instanceof ApiError ? err.message : "Request failed");
             setIsLoading(false);
         });
     }, [name, status, page]);
@@ -145,7 +135,10 @@ let body;
               </thead>
               <tbody>
                 {contracts.map((contract) => (
-                  <tr key={contract.id} className="border-b border-neutral-100 last:border-0">
+                  <tr key={contract.id} 
+                      onClick={() => router.push(`/contracts/${contract.id}`)}
+                      className=" cursor-pointer border-b border-neutral-100 last:border-0 hover:bg-neutral-50"
+                  >
                     <td className="px-4 py-3">
                       <Link
                         href={`/contracts/${contract.id}`}
